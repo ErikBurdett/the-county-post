@@ -1,6 +1,8 @@
 import { getCountyByState } from "@nickgraffis/us-counties";
+import { countyCentroidsByFips } from "./county-centroids";
 import { buildCountyFeedUrl } from "../lib/county-feed-urls";
 import { site } from "./site";
+import { stateNewsHubs } from "./state-news-hubs";
 import { getStateBySlug, states, type StateSite } from "./states";
 
 type UsCounty = {
@@ -16,6 +18,9 @@ export type CountySite = {
   fips: string;
   displayName: string;
   primaryCity?: string;
+  localCities?: string[];
+  latitude?: number;
+  longitude?: number;
   description: string;
   feeds: {
     localNewsUrl: string;
@@ -23,6 +28,10 @@ export type CountySite = {
     localVideoUrl: string;
     nationalNewsUrl: string;
     obituariesUrl: string;
+    politicsUrl: string;
+    economyUrl: string;
+    crimeUrl: string;
+    opinionUrl: string;
   };
 };
 
@@ -37,6 +46,7 @@ export function slugify(value: string) {
 function createCountySite(county: UsCounty, state: StateSite): CountySite {
   const slug = slugify(county.name);
   const displayName = `${county.name} County`;
+  const centroid = countyCentroidsByFips[county.FIPS];
 
   return {
     name: county.name,
@@ -44,6 +54,8 @@ function createCountySite(county: UsCounty, state: StateSite): CountySite {
     state,
     fips: county.FIPS,
     displayName,
+    latitude: centroid?.[0],
+    longitude: centroid?.[1],
     description: `County-level dispatches for ${displayName}, ${state.abbr}. Local headlines, sports, obituaries, and nearby stories in one place.`,
     feeds: {
       localNewsUrl: buildCountyFeedUrl("localNews", county.name, state),
@@ -51,6 +63,10 @@ function createCountySite(county: UsCounty, state: StateSite): CountySite {
       localVideoUrl: buildCountyFeedUrl("localVideo", county.name, state),
       nationalNewsUrl: site.links.nationalNews,
       obituariesUrl: buildCountyFeedUrl("obituaries", county.name, state),
+      politicsUrl: buildCountyFeedUrl("politics", county.name, state),
+      economyUrl: buildCountyFeedUrl("economy", county.name, state),
+      crimeUrl: buildCountyFeedUrl("crime", county.name, state),
+      opinionUrl: buildCountyFeedUrl("opinion", county.name, state),
     },
   };
 }
@@ -58,9 +74,15 @@ function createCountySite(county: UsCounty, state: StateSite): CountySite {
 const countyOverrides: Record<string, Partial<CountySite>> = {
   "texas/potter": {
     primaryCity: "Amarillo",
+    localCities: ["Amarillo", "Bushland", "Bishop Hills"],
+    latitude: 35.4013,
+    longitude: -101.8941,
   },
   "texas/randall": {
     primaryCity: "Amarillo",
+    localCities: ["Amarillo", "Canyon", "Lake Tanglewood", "Palisades", "Timbercreek Canyon"],
+    latitude: 34.9659,
+    longitude: -101.8978,
   },
 };
 
@@ -93,6 +115,37 @@ export function getCountiesForState(stateSlug?: string) {
   const state = getStateBySlug(stateSlug);
   if (!state) return [];
   return counties.filter((county) => county.state.slug === state.slug);
+}
+
+export function getCountyMarketCity(county: CountySite) {
+  return getCountyMarketCities(county, 1)[0] || county.name;
+}
+
+export function getCountyMarketCities(county: CountySite, limit = 2) {
+  const explicitCities = county.primaryCity ? [county.primaryCity] : [];
+  const hubs = stateNewsHubs[county.state.slug] || [];
+
+  const sortedHubs =
+    county.latitude !== undefined && county.longitude !== undefined
+      ? [...hubs].sort(
+          (a, b) =>
+            haversineMiles(county.latitude!, county.longitude!, a.latitude, a.longitude) -
+            haversineMiles(county.latitude!, county.longitude!, b.latitude, b.longitude),
+        )
+      : hubs;
+
+  return Array.from(new Set([...explicitCities, ...sortedHubs.map((hub) => hub.city)])).slice(0, limit);
+}
+
+function haversineMiles(latA: number, lonA: number, latB: number, lonB: number) {
+  const earthRadiusMiles = 3958.8;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(latB - latA);
+  const dLon = toRadians(lonB - lonA);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(latA)) * Math.cos(toRadians(latB)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
 }
 
 export function searchCounties(query: string, limit = 25) {

@@ -1,12 +1,17 @@
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Playfair+Display:wght@500;700;900&family=Roboto+Mono:wght@400;600&display=swap");
 
 :root {
-  --ink: #111;
-  --paper: #f8f7f3;
-  --border: #111;
-  --muted: #4a4a4a;
-  --accent: #111;
-  --shadow: 0 8px 0 #111;
+  --ink: #101010;
+  --paper: #e7e6e1;
+  --page: #f4f3ef;
+  --panel: #fafafa;
+  --panel-soft: #f0f0ee;
+  --border: #181818;
+  --rule: #5f5f5f;
+  --muted: #565656;
+  --accent: #0f0f0f;
+  --shadow: 0 10px 0 rgba(0, 0, 0, 0.82);
+  --soft-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 16px 40px rgba(0, 0, 0, 0.14);
 
   font-family: "Libre Baskerville", Georgia, "Times New Roman", serif;
   font-size: 18px;
@@ -25,7 +30,29 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top left, #fff, #f2f0e9 45%, #ebe7dc);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.8), transparent 28%),
+    radial-gradient(circle at 80% 15%, rgba(255, 255, 255, 0.32), transparent 26%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.028) 0, rgba(0, 0, 0, 0.028) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0, rgba(0, 0, 0, 0.018) 1px, transparent 1px, transparent 6px),
+    linear-gradient(135deg, #d5d4d0 0%, #eeeeeb 42%, #c6c5c0 100%);
+  min-height: 100vh;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(0, 0, 0, 0.08) 0.55px, transparent 0.55px),
+    radial-gradient(rgba(255, 255, 255, 0.5) 0.55px, transparent 0.55px);
+  background-position:
+    0 0,
+    1px 1px;
+  background-size: 3px 3px;
+  opacity: 0.38;
+  mix-blend-mode: multiply;
 }
 
 #root {
@@ -36,7 +63,10 @@ body {
 
 .page {
   border: 2px solid var(--border);
-  background: #fffdf8;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.78), rgba(246, 246, 244, 0.86)),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0, rgba(0, 0, 0, 0.018) 1px, transparent 1px, transparent 7px),
+    var(--page);
   box-shadow: var(--shadow);
   padding: 18px 18px 32px;
   width: 100%;
@@ -49,6 +79,7 @@ body {
   border-bottom: 2px solid var(--border);
   padding-bottom: 12px;
   margin-bottom: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(0, 0, 0, 0.025));
 }
 
 .masthead-kicker {
@@ -72,6 +103,7 @@ body {
   font-size: 42px;
   letter-spacing: 1px;
   text-transform: uppercase;
+  text-shadow: 0 1px 0 #fff, 0 2px 0 rgba(0, 0, 0, 0.08);
 }
 
 .wordmark-sub {
@@ -95,16 +127,19 @@ body {
   color: var(--ink);
   padding: 8px 10px;
   border: 1px solid var(--border);
-  background: #fdfaf4;
+  background: linear-gradient(#f7f7f5, #e7e7e4);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 .nav-link.active {
   background: #111;
-  color: #fffdf8;
+  color: #f4f4f1;
 }
 
 .nav-link:hover {
   text-decoration: underline;
+  transform: translateY(-1px);
 }
 
 .layout-grid {
@@ -118,8 +153,18 @@ body {
 .section {
   border: 1px solid var(--border);
   padding: 18px 18px 24px;
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(243, 243, 241, 0.92)),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.018) 0, rgba(0, 0, 0, 0.018) 1px, transparent 1px, transparent 5px),
+    var(--panel);
+  box-shadow: var(--soft-shadow);
+}
+
+.hero-card {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(230, 230, 226, 0.94)),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0, rgba(0, 0, 0, 0.018) 1px, transparent 1px, transparent 8px),
+    var(--panel);
 }
 
 .hero-card h1 {
@@ -170,9 +215,27 @@ h2 {
 }
 
 .section-heading-rule {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--rule);
   height: 1px;
   width: 100%;
+}
+
+.section-action {
+  display: inline-block;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  color: var(--ink);
+  background: linear-gradient(#f4f4f2, #dededb);
+  font-family: "Roboto Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.section-action:hover {
+  text-decoration: underline;
 }
 
 .search-form {
@@ -194,8 +257,16 @@ textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  background: #fffdf8;
+  background: #f7f7f4;
   font-size: 16px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid #111;
+  outline-offset: 2px;
+  background: #fff;
 }
 
 textarea {
@@ -205,11 +276,18 @@ textarea {
 button {
   padding: 10px 14px;
   border: 1px solid var(--border);
-  background: #111;
-  color: #fffdf8;
+  background: linear-gradient(#252525, #050505);
+  color: #f4f4f1;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.24) inset;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+button:hover {
+  filter: contrast(1.15);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -221,6 +299,10 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
+}
+
+.results-list.single {
+  grid-template-columns: 1fr;
 }
 
 .results-columns {
@@ -239,13 +321,13 @@ button:disabled {
   padding: 10px 12px;
   text-decoration: none;
   color: var(--ink);
-  background: #fffdf8;
+  background: linear-gradient(#fbfbfa, #ebebe8);
   display: flex;
   justify-content: space-between;
 }
 
 .result-link:hover {
-  background: #f1ece2;
+  background: #dededa;
 }
 
 .result-name {
@@ -269,9 +351,13 @@ button:disabled {
   padding: 10px 12px;
   text-decoration: none;
   color: var(--ink);
-  background: #fffdf8;
+  background: linear-gradient(#fbfbfa, #ebebe8);
   display: flex;
   justify-content: space-between;
+}
+
+.state-tile:hover {
+  background: #dededa;
 }
 
 .state-meta {
@@ -290,8 +376,12 @@ button:disabled {
   padding: 6px 10px;
   text-decoration: none;
   color: var(--ink);
-  background: #fffdf8;
+  background: linear-gradient(#f7f7f5, #e8e8e5);
   font-size: 14px;
+}
+
+.county-chip:hover {
+  background: #dadad7;
 }
 
 .feed-grid {
@@ -303,8 +393,25 @@ button:disabled {
 .feed-card {
   border: 1px solid var(--border);
   padding: 12px;
-  background: #fffdf8;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(235, 235, 232, 0.9)),
+    var(--panel-soft);
   min-height: 160px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.76) inset;
+  transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.feed-card:hover {
+  background: #f5f5f3;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.feed-scroll {
+  max-height: min(70vh, 960px);
+  overflow-y: auto;
+  padding-right: 4px;
+  padding-bottom: 12px;
 }
 
 .feed-title {
@@ -384,8 +491,8 @@ button:disabled {
   display: inline-block;
   margin-top: 10px;
   text-decoration: none;
-  color: #fffdf8;
-  background: #111;
+  color: #f4f4f1;
+  background: linear-gradient(#252525, #050505);
   padding: 10px 14px;
   border: 1px solid #111;
   text-transform: uppercase;
@@ -400,6 +507,24 @@ button:disabled {
   font-family: "Roboto Mono", monospace;
   letter-spacing: 0.08em;
   font-size: 12px;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.footer-links a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 720px) {
@@ -430,7 +555,12 @@ button:disabled {
 
 @media (min-width: 1280px) {
   body {
-    background: radial-gradient(circle at 10% 10%, #fff, #f2f0e9 35%, #ebe7dc 70%);
+    background:
+      radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.76), transparent 26%),
+      radial-gradient(circle at 85% 10%, rgba(255, 255, 255, 0.22), transparent 28%),
+      repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.026) 0, rgba(0, 0, 0, 0.026) 1px, transparent 1px, transparent 4px),
+      repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.016) 0, rgba(0, 0, 0, 0.016) 1px, transparent 1px, transparent 7px),
+      linear-gradient(135deg, #d7d6d1 0%, #efefec 38%, #c4c3be 100%);
   }
 
   .layout-grid {

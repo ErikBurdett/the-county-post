@@ -2,7 +2,15 @@ import { getOtherStatesWithCountyName, isAmbiguousCountyName } from "../data/cou
 import { site } from "../data/site";
 import type { StateSite } from "../data/states";
 
-export type CountyFeedKind = "localNews" | "localSports" | "localVideo" | "obituaries";
+export type CountyFeedKind =
+  | "localNews"
+  | "localSports"
+  | "localVideo"
+  | "obituaries"
+  | "politics"
+  | "economy"
+  | "crime"
+  | "opinion";
 
 function googleNewsRssUrl(query: string) {
   const url = new URL(site.links.googleNewsRssSearch);
@@ -27,20 +35,30 @@ function countyScopedTerms(countyName: string, state: StateSite) {
   return `${countyName} County ${state.name} OR ${countyName} ${state.abbr} ${exclusions}`.trim();
 }
 
+function scopedTopicQuery(scopedPlace: string, topics: string[]) {
+  return `(${scopedPlace}) (${topics.join(" OR ")})`;
+}
+
 export function buildCountyFeedUrl(kind: CountyFeedKind, countyName: string, state: StateSite) {
   const scoped = countyScopedTerms(countyName, state);
 
   switch (kind) {
     case "localNews":
-      return googleNewsRssUrl(`${scoped} local news OR ${scoped} community news`);
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["local news", "community news"]));
     case "localSports":
-      return googleNewsRssUrl(
-        `${scoped} high school sports OR ${scoped} college sports OR ${scoped} football OR ${scoped} basketball OR ${scoped} baseball OR ${scoped} softball`,
-      );
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["high school sports", "college sports", "football", "basketball", "baseball", "softball"]));
     case "localVideo":
-      return googleNewsRssUrl(`${scoped} local news video OR ${scoped} news video`);
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["local news video", "news video"]));
     case "obituaries":
-      return googleNewsRssUrl(`${scoped} obituaries OR ${scoped} obituary OR ${scoped} funeral home OR ${scoped} death notice`);
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["obituaries", "obituary", "funeral home", "death notice"]));
+    case "politics":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["politics", "council", "commission", "elections", "ballot"]));
+    case "economy":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["economy", "jobs", "unemployment", "housing market", "business"]));
+    case "crime":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["crime", "courts", "sheriff", "police", "arrests"]));
+    case "opinion":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["opinion", "editorial", "column"]));
   }
 }
 
@@ -49,12 +67,20 @@ export function buildMarketFeedUrl(kind: CountyFeedKind, placeName: string, stat
 
   switch (kind) {
     case "localNews":
-      return googleNewsRssUrl(`${scopedPlace} local news`);
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["local news"]));
     case "localSports":
-      return googleNewsRssUrl(`${scopedPlace} sports OR ${scopedPlace} high school sports OR ${scopedPlace} college sports`);
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["sports", "high school sports", "college sports"]));
     case "localVideo":
-      return googleNewsRssUrl(`${scopedPlace} news video`);
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["news video"]));
     case "obituaries":
-      return googleNewsRssUrl(`${scopedPlace} obituaries OR ${scopedPlace} funeral home`);
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["obituaries", "funeral home"]));
+    case "politics":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["politics", "city council", "elections"]));
+    case "economy":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["economy", "jobs", "business"]));
+    case "crime":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["crime", "police", "sheriff", "courts"]));
+    case "opinion":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["opinion", "editorial", "column"]));
   }
 }

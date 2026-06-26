@@ -10,23 +10,45 @@ export type NewsFeedItem = {
 
 const DEFAULT_PROVIDER_URL = "https://api.rss2json.com/v1/api.json";
 const DEFAULT_RAW_PROXY_URL = "https://api.allorigins.win/raw";
-const MAX_ITEMS = 24;
+const DEFAULT_LOCAL_PROXY_URL = "/api/rss";
+const DEFAULT_MAX_ITEMS = 200;
 
-export async function fetchNewsFeed(feedUrl: string): Promise<NewsFeedItem[]> {
-  const items = await tryProvider(feedUrl);
-  if (items.length) return newest(items);
+export async function fetchNewsFeed(feedUrl: string, maxItems = DEFAULT_MAX_ITEMS): Promise<NewsFeedItem[]> {
+  const localItems = await tryLocalProxy(feedUrl);
+  if (localItems.length) return newest(localItems, maxItems);
+
+  const items = await tryProvider(feedUrl, maxItems);
+  if (items.length) return newest(items, maxItems);
 
   const rawItems = await tryRawProxy(feedUrl);
-  return newest(rawItems);
+  return newest(rawItems, maxItems);
 }
 
-async function tryProvider(feedUrl: string) {
+export async function fetchNewsFeeds(feedUrls: string[], maxItems = DEFAULT_MAX_ITEMS): Promise<NewsFeedItem[]> {
+  const uniqueUrls = Array.from(new Set(feedUrls.filter(Boolean)));
+  const results = await Promise.all(uniqueUrls.map((feedUrl) => fetchNewsFeed(feedUrl, maxItems)));
+  return newest(dedupeItems(results.flat()), maxItems);
+}
+
+async function tryLocalProxy(feedUrl: string) {
+  try {
+    const url = new URL(import.meta.env.VITE_RSS_LOCAL_PROXY_URL || DEFAULT_LOCAL_PROXY_URL, window.location.origin);
+    url.searchParams.set("url", feedUrl);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Local proxy failed ${response.status}`);
+    return parseRssXml(await response.text());
+  } catch {
+    return [];
+  }
+}
+
+async function tryProvider(feedUrl: string, maxItems: number) {
   try {
     const url = new URL(import.meta.env.VITE_RSS_PROVIDER_URL || DEFAULT_PROVIDER_URL);
     url.searchParams.set("rss_url", feedUrl);
+    url.searchParams.set("count", String(maxItems));
     if (import.meta.env.VITE_RSS2JSON_API_KEY) {
       url.searchParams.set("api_key", import.meta.env.VITE_RSS2JSON_API_KEY);
-      url.searchParams.set("count", String(MAX_ITEMS));
     }
 
     const response = await fetch(url);
@@ -68,30 +90,52 @@ async function tryRawProxy(feedUrl: string) {
     url.searchParams.set("url", feedUrl);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Proxy failed ${response.status}`);
-    const xml = await response.text();
-
-    const document = new DOMParser().parseFromString(xml, "text/xml");
-    if (document.querySelector("parsererror")) throw new Error("Could not parse RSS");
-
-    return Array.from(document.querySelectorAll("item")).map((item, index) => {
-      const description = text(item, "description");
-      return {
-        id: text(item, "guid") || text(item, "link") || `${text(item, "title") || "item"}-${index}`,
-        title: stripHtml(text(item, "title") || "Untitled update"),
-        link: text(item, "link") || "#",
-        source: text(item, "source"),
-        publishedAt: text(item, "pubDate"),
-        description: stripHtml(description).slice(0, 200),
-        imageUrl: imageFromRawItem(item, description),
-      };
-    });
+    return parseRssXml(await response.text());
   } catch {
     return [];
   }
 }
 
-function text(item: Element, tag: string) {
-  return item.getElementsByTagName(tag)[0]?.textContent?.trim() || "";
+function parseRssXml(xml: string) {
+  const document = new DOMParser().parseFromString(xml, "text/xml");
+  if (document.querySelector("parsererror")) throw new Error("Could not parse RSS");
+
+  const rssItems = Array.from(document.querySelectorAll("item")).map((item, index) => {
+    const description = text(item, "description");
+    return {
+      id: text(item, "guid") || text(item, "link") || `${text(item, "title") || "item"}-${index}`,
+      title: decodeEntities(stripHtml(text(item, "title") || "Untitled update")),
+      link: text(item, "link") || "#",
+      source: text(item, "source"),
+      publishedAt: text(item, "pubDate"),
+      description: decodeEntities(stripHtml(description)).slice(0, 200),
+      imageUrl: imageFromRawItem(item, description),
+    };
+  });
+
+  if (rssItems.length) return rssItems;
+
+  return Array.from(document.querySelectorAll("entry")).map((entry, index) => {
+    const link = entry.querySelector("link[rel='alternate']")?.getAttribute("href") || entry.querySelector("link")?.getAttribute("href") || "";
+    const description = text(entry, "summary") || text(entry, "content");
+    return {
+      id: text(entry, "id") || link || `${text(entry, "title") || "entry"}-${index}`,
+      title: decodeEntities(stripHtml(text(entry, "title") || "Untitled update")),
+      link: link || "#",
+      source: text(entry, "source title") || text(entry, "author name"),
+      publishedAt: text(entry, "published") || text(entry, "updated"),
+      description: decodeEntities(stripHtml(description)).slice(0, 200),
+      imageUrl: "",
+    };
+  });
+}
+
+function text(item: Element, selector: string) {
+  const parts = selector.split(" ");
+  if (parts.length > 1) {
+    return parts.reduce<Element | undefined>((element, part) => element?.getElementsByTagName(part)[0], item)?.textContent?.trim() || "";
+  }
+  return item.getElementsByTagName(selector)[0]?.textContent?.trim() || "";
 }
 
 function imageFromRawItem(item: Element, description: string) {
@@ -108,10 +152,31 @@ function imageFromItem(item: { thumbnail?: string; enclosure?: { link?: string; 
   return "";
 }
 
-function newest(items: NewsFeedItem[]) {
+function newest(items: NewsFeedItem[], maxItems: number) {
   return [...items]
     .sort((a, b) => (timestamp(b.publishedAt) ?? 0) - (timestamp(a.publishedAt) ?? 0))
-    .slice(0, MAX_ITEMS);
+    .slice(0, maxItems);
+}
+
+function dedupeItems(items: NewsFeedItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = normalizeDedupeKey(item.link || item.title);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeDedupeKey(value: string) {
+  try {
+    const url = new URL(value);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return value.toLowerCase().replace(/\s+/g, " ").trim();
+  }
 }
 
 function timestamp(value?: string) {
