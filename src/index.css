@@ -151,6 +151,40 @@ body::before {
   transform: translateY(-1px);
 }
 
+.context-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: -4px 0 18px;
+  border: 1px solid var(--border);
+  padding: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(229, 229, 225, 0.86)),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0, rgba(0, 0, 0, 0.018) 1px, transparent 1px, transparent 7px);
+}
+
+.context-link {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  background: linear-gradient(#f8f8f6, #e4e4e0);
+  color: var(--ink);
+  font-family: "Roboto Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.context-link.active {
+  background: #111;
+  color: #f4f4f1;
+}
+
+.context-link:hover {
+  text-decoration: underline;
+}
+
 .market-weather-stack {
   border: 1px solid var(--border);
   margin: 0 0 14px;

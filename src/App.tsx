@@ -7,10 +7,10 @@ import { getCounty, getCountiesForState, getCountyMarketCities, getCountyMarketC
 import { site } from "./data/site";
 import { getStateBySlug, searchStates, states } from "./data/states";
 import { buildCountyFallbackFeedUrls, buildNationalFallbackFeedUrls, buildStateFallbackFeedUrls } from "./lib/fallback-feed-urls";
-import { fetchNewsApiPage, isNewsApiConfigured, type NewsFeedItem } from "./lib/news-api";
+import { fetchNewsApiPage, isNewsApiConfigured, type NewsFeedItem, type Topic } from "./lib/news-api";
 import "./index.css";
 
-type TopicFeedKind = "general" | "sports" | "politics" | "economy" | "crime" | "obituaries" | "opinion";
+type TopicFeedKind = Topic;
 
 const topicSections: { kind: TopicFeedKind; title: string; kicker: string }[] = [
   { kind: "sports", title: "Sports", kicker: "Scores & highlights" },
@@ -19,6 +19,37 @@ const topicSections: { kind: TopicFeedKind; title: string; kicker: string }[] = 
   { kind: "crime", title: "Crime & courts", kicker: "Public safety" },
   { kind: "obituaries", title: "Obituaries & public notices", kicker: "Community records" },
   { kind: "opinion", title: "Opinion & op-eds", kicker: "Columns & analysis" },
+];
+
+const subjectPages: { kind: TopicFeedKind; slug: string; title: string; kicker: string; description: string }[] = [
+  {
+    kind: "sound-money",
+    slug: "sound-money",
+    title: "Sound Money",
+    kicker: "Money desk",
+    description: "Coverage of inflation, currency, precious metals, central banking, and local impacts of monetary policy.",
+  },
+  {
+    kind: "paper-elections",
+    slug: "paper-elections",
+    title: "Paper Elections",
+    kicker: "Election desk",
+    description: "Coverage of paper ballots, election audits, voting machines, hand counts, and election integrity debates.",
+  },
+  {
+    kind: "bond-issues",
+    slug: "bond-issues",
+    title: "Bond Issues",
+    kicker: "Public debt",
+    description: "Coverage of public debt, school bonds, municipal bonds, bond elections, and local borrowing proposals.",
+  },
+  {
+    kind: "property-taxes",
+    slug: "property-taxes",
+    title: "Property Taxes",
+    kicker: "Tax desk",
+    description: "Coverage of property taxes, appraisals, tax levies, homestead exemptions, and local tax policy.",
+  },
 ];
 
 const pageTopicSections = ["general", ...topicSections.map((section) => section.kind)] as const;
@@ -107,6 +138,7 @@ function pageSectionProps(page: NewsPageState, section: string) {
 
 function App() {
   const activeCounty = useActiveCounty();
+  const activeState = useActiveState(activeCounty);
   const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
@@ -150,18 +182,25 @@ function App() {
           </a>
         </nav>
       </header>
+      <ContextNav county={activeCounty} state={activeState} />
 
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/topics/:subjectSlug" element={<NationalSubjectPage />} />
+          <Route path="/submit" element={<SubmitPage />} />
           <Route path="/states" element={<StateDirectory />} />
           <Route path="/states/:stateSlug" element={<StatePage />} />
+          <Route path="/states/:stateSlug/:subjectSlug" element={<StateSubjectPage />} />
+          <Route path="/states/:stateSlug/submit" element={<SubmitPage />} />
           <Route path="/op-eds" element={<OpEdPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/:stateSlug/:countySlug" element={<CountyPage />} />
           <Route path="/:stateSlug/:countySlug/op-eds" element={<CountyOpEdPage />} />
+          <Route path="/:stateSlug/:countySlug/submit" element={<CountySubmitPage />} />
+          <Route path="/:stateSlug/:countySlug/:subjectSlug" element={<CountySubjectPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
@@ -185,6 +224,62 @@ function useActiveCounty() {
   const [stateSlug, countySlug] = pathname.split("/").filter(Boolean);
   if (!stateSlug || !countySlug || stateSlug === "states") return undefined;
   return getCounty(stateSlug, countySlug);
+}
+
+function useActiveState(county?: ReturnType<typeof getCounty>) {
+  const { pathname } = useLocation();
+  if (county) return county.state;
+  const [first, second] = pathname.split("/").filter(Boolean);
+  if (first === "states" && second) return getStateBySlug(second);
+  return undefined;
+}
+
+function ContextNav({ county, state }: { county?: NonNullable<ReturnType<typeof getCounty>>; state?: ReturnType<typeof getStateBySlug> }) {
+  const links = contextLinks(county, state);
+  if (!links.length) return null;
+
+  const label = county ? `${county.displayName} pages` : state ? `${state.name} pages` : "National pages";
+
+  return (
+    <nav className="context-nav" aria-label={label}>
+      {links.map((link) => (
+        <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? "context-link active" : "context-link")}>
+          {link.label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
+type ContextLink = { to: string; label: string; end?: boolean };
+
+function contextLinks(county?: NonNullable<ReturnType<typeof getCounty>>, state?: ReturnType<typeof getStateBySlug>): ContextLink[] {
+  if (county) {
+    const base = `/${county.state.slug}/${county.slug}`;
+    return [
+      { to: base, label: "County Home", end: true },
+      ...subjectPages.map((subject) => ({ to: `${base}/${subject.slug}`, label: subject.title })),
+      { to: `${base}/op-eds`, label: "County Op-Eds" },
+      { to: `${base}/submit`, label: "Submit Op-Eds/Stories" },
+    ];
+  }
+
+  if (state) {
+    const base = `/states/${state.slug}`;
+    return [
+      { to: base, label: "State Home", end: true },
+      ...subjectPages.map((subject) => ({ to: `${base}/${subject.slug}`, label: subject.title })),
+      { to: `${base}/op-eds`, label: "State Op-Eds" },
+      { to: `${base}/submit`, label: "Submit Op-Eds/Stories" },
+    ];
+  }
+
+  return [
+    { to: "/", label: "National Home", end: true },
+    ...subjectPages.map((subject) => ({ to: `/topics/${subject.slug}`, label: subject.title })),
+    { to: "/op-eds", label: "National Op-Eds" },
+    { to: "/submit", label: "Submit Op-Eds/Stories" },
+  ];
 }
 
 function HomePage() {
@@ -435,6 +530,63 @@ function StatePage() {
   );
 }
 
+function NationalSubjectPage() {
+  const { subjectSlug } = useParams<{ subjectSlug: string }>();
+  const subject = getSubjectPage(subjectSlug);
+  if (!subject) return <NotFound />;
+
+  return (
+    <div className="layout-grid">
+      <section className="hero-card">
+        <p className="kicker">{subject.kicker}</p>
+        <h1>{subject.title}</h1>
+        <p className="lead">{subject.description}</p>
+      </section>
+      <NewsFeedSection
+        title={`${subject.title} headlines`}
+        kicker="National desk"
+        apiPath={nationalApiPath(subject.kind)}
+        fallbackFeedUrls={buildNationalFallbackFeedUrls(subject.kind)}
+        pageSize={18}
+        kind={subject.kind}
+      />
+    </div>
+  );
+}
+
+function StateSubjectPage() {
+  const { stateSlug, subjectSlug } = useParams<{ stateSlug: string; subjectSlug: string }>();
+  const state = getStateBySlug(stateSlug);
+  if (!state) return <NotFound />;
+
+  const subject =
+    subjectSlug === "op-eds"
+      ? { kind: "opinion" as TopicFeedKind, title: "State Op-Eds", kicker: "Opinion", description: `Columns, editorials, and opinion coverage for ${state.name}.` }
+      : getSubjectPage(subjectSlug);
+  if (!subject) return <NotFound />;
+
+  return (
+    <div className="layout-grid">
+      <section className="hero-card">
+        <p className="kicker">{subject.kicker}</p>
+        <h1>
+          {state.name} {subject.title} <span className="muted">({state.abbr})</span>
+        </h1>
+        <p className="lead">{subject.description}</p>
+      </section>
+      <NewsFeedSection
+        title={`${state.name} ${subject.title}`}
+        kicker="State desk"
+        apiPath={stateApiPath(state.slug, subject.kind)}
+        fallbackFeedUrls={buildStateFallbackFeedUrls(state, subject.kind)}
+        pageSize={18}
+        kind={subject.kind}
+        locality={{ stateName: state.name, stateAbbr: state.abbr, strict: true }}
+      />
+    </div>
+  );
+}
+
 function CountyPage() {
   const { stateSlug, countySlug } = useParams<{ stateSlug: string; countySlug: string }>();
   const county = getCounty(stateSlug, countySlug);
@@ -587,6 +739,47 @@ function CountyPage() {
   );
 }
 
+function CountySubjectPage() {
+  const { stateSlug, countySlug, subjectSlug } = useParams<{ stateSlug: string; countySlug: string; subjectSlug: string }>();
+  const county = getCounty(stateSlug, countySlug);
+  if (!county) return <NotFound />;
+
+  const subject = getSubjectPage(subjectSlug);
+  if (!subject) return <NotFound />;
+
+  const marketCities = getCountyMarketCities(county, 3);
+  const fallbackCity = marketCities[0] || getCountyMarketCity(county);
+  const localCities = Array.from(new Set([fallbackCity, ...marketCities.slice(1), ...(county.localCities || [])]));
+
+  return (
+    <div className="layout-grid">
+      <section className="hero-card">
+        <p className="kicker">{subject.kicker}</p>
+        <h1>
+          {county.displayName} {subject.title} <span className="muted">({county.state.abbr})</span>
+        </h1>
+        <p className="lead">{subject.description}</p>
+      </section>
+      <NewsFeedSection
+        title={`${county.displayName} ${subject.title}`}
+        kicker="County desk"
+        apiPath={countyApiPath(county.state.slug, county.slug, subject.kind)}
+        fallbackFeedUrls={buildCountyFallbackFeedUrls(county, subject.kind)}
+        expandedLabel={`nearby markets including ${localCities.join(" and ")}`}
+        pageSize={18}
+        kind={subject.kind}
+        locality={{
+          countyName: county.name,
+          stateName: county.state.name,
+          stateAbbr: county.state.abbr,
+          cities: localCities,
+          strict: true,
+        }}
+      />
+    </div>
+  );
+}
+
 function CountyOpEdPage() {
   const { stateSlug, countySlug } = useParams<{ stateSlug: string; countySlug: string }>();
   const county = getCounty(stateSlug, countySlug);
@@ -628,6 +821,25 @@ function CountyOpEdPage() {
   );
 }
 
+function CountySubmitPage() {
+  const { stateSlug, countySlug } = useParams<{ stateSlug: string; countySlug: string }>();
+  const county = getCounty(stateSlug, countySlug);
+  if (!county) return <NotFound />;
+
+  return (
+    <div className="layout-grid">
+      <section className="hero-card">
+        <p className="kicker">Submit</p>
+        <h1>
+          Submit to {county.displayName} <span className="muted">({county.state.abbr})</span>
+        </h1>
+        <p className="lead">Send op-eds, tips, story leads, documents, public notices, and local reporting to the county desk.</p>
+      </section>
+      <SubmissionForm county={county} />
+    </div>
+  );
+}
+
 function OpEdPage() {
   return (
     <div className="layout-grid">
@@ -646,6 +858,33 @@ function OpEdPage() {
       />
     </div>
   );
+}
+
+function SubmitPage() {
+  const { stateSlug } = useParams<{ stateSlug?: string }>();
+  const state = getStateBySlug(stateSlug);
+  const scopeLabel = state ? `${state.name} desk` : "national desk";
+  const subject = encodeURIComponent(`Submission for ${scopeLabel}`);
+
+  return (
+    <div className="layout-grid">
+      <section className="hero-card">
+        <p className="kicker">Submit</p>
+        <h1>Submit Op-Eds/Stories</h1>
+        <p className="lead">
+          Send op-eds, story tips, documents, public notices, and local reporting to the {scopeLabel}. County pages include
+          a full submission form; state and national submissions can be emailed directly for now.
+        </p>
+        <a className="button-link" href={`mailto:${site.contact.email}?subject=${subject}`}>
+          Email the desk
+        </a>
+      </section>
+    </div>
+  );
+}
+
+function getSubjectPage(subjectSlug?: string) {
+  return subjectPages.find((subject) => subject.slug === subjectSlug);
 }
 
 function AboutPage() {

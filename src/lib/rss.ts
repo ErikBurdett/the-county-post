@@ -1,18 +1,36 @@
 import type { NewsFeedItem } from "./news-api";
 
 const DEFAULT_PROVIDER_URL = "https://api.rss2json.com/v1/api.json";
-const DEFAULT_LOCAL_PROXY_URL = "/api/rss";
 const DEFAULT_MAX_ITEMS = 200;
+const PROVIDER_MAX_ITEMS = 50;
+const RSS_CACHE_MS = 5 * 60_000;
+
+const feedCache = new Map<string, { expiresAt: number; promise: Promise<NewsFeedItem[]> }>();
 
 export async function fetchNewsFeed(feedUrl: string, maxItems = DEFAULT_MAX_ITEMS): Promise<NewsFeedItem[]> {
-  const localItems = await tryLocalProxy(feedUrl);
-  if (localItems.length) return newest(localItems, maxItems);
+  const cached = feedCache.get(feedUrl);
+  if (cached && cached.expiresAt > Date.now()) return newest(await cached.promise, maxItems);
 
-  const items = await tryProvider(feedUrl, maxItems);
-  if (items.length) return newest(items, maxItems);
+  const promise = fetchNewsFeedUncached(feedUrl);
+  feedCache.set(feedUrl, { expiresAt: Date.now() + RSS_CACHE_MS, promise });
+
+  try {
+    return newest(await promise, maxItems);
+  } catch (error) {
+    feedCache.delete(feedUrl);
+    throw error;
+  }
+}
+
+async function fetchNewsFeedUncached(feedUrl: string): Promise<NewsFeedItem[]> {
+  const localItems = await tryLocalProxy(feedUrl);
+  if (localItems.length) return newest(localItems, DEFAULT_MAX_ITEMS);
+
+  const items = await tryProvider(feedUrl);
+  if (items.length) return newest(items, DEFAULT_MAX_ITEMS);
 
   const rawItems = await tryRawProxy(feedUrl);
-  return newest(rawItems, maxItems);
+  return newest(rawItems, DEFAULT_MAX_ITEMS);
 }
 
 export async function fetchNewsFeeds(feedUrls: string[], maxItems = DEFAULT_MAX_ITEMS): Promise<NewsFeedItem[]> {
@@ -23,7 +41,7 @@ export async function fetchNewsFeeds(feedUrls: string[], maxItems = DEFAULT_MAX_
 
 async function tryLocalProxy(feedUrl: string) {
   try {
-    const proxyUrl = import.meta.env.VITE_RSS_LOCAL_PROXY_URL || (import.meta.env.DEV ? DEFAULT_LOCAL_PROXY_URL : "");
+    const proxyUrl = import.meta.env.VITE_RSS_LOCAL_PROXY_URL || "";
     if (!proxyUrl) return [];
 
     const url = new URL(proxyUrl, window.location.origin);
@@ -36,13 +54,14 @@ async function tryLocalProxy(feedUrl: string) {
   }
 }
 
-async function tryProvider(feedUrl: string, maxItems: number) {
+async function tryProvider(feedUrl: string) {
   try {
     const url = new URL(import.meta.env.VITE_RSS_PROVIDER_URL || DEFAULT_PROVIDER_URL);
+    const apiKey = import.meta.env.RSS_2_API || import.meta.env.VITE_RSS2JSON_API_KEY;
     url.searchParams.set("rss_url", feedUrl);
-    if (import.meta.env.VITE_RSS2JSON_API_KEY) {
-      url.searchParams.set("api_key", import.meta.env.VITE_RSS2JSON_API_KEY);
-      url.searchParams.set("count", String(maxItems));
+    if (apiKey) {
+      url.searchParams.set("api_key", apiKey);
+      url.searchParams.set("count", String(PROVIDER_MAX_ITEMS));
     }
 
     const response = await fetch(url);

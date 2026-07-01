@@ -24,6 +24,10 @@ export function buildNationalFallbackFeedUrls(kind: Topic) {
     crime: ["United States crime", "courts", "justice department", "police", "public safety"],
     obituaries: ["United States obituaries", "obituary", "funeral", "death notice"],
     opinion: ["United States opinion", "editorial", "column", "commentary", "op-ed"],
+    "sound-money": ["sound money", "gold standard", "central bank", "Federal Reserve", "inflation", "currency"],
+    "paper-elections": ["paper ballots", "paper elections", "election integrity", "hand count", "voting machines", "election audit"],
+    "bond-issues": ["bond issue", "municipal bond", "school bond", "public debt", "bond election"],
+    "property-taxes": ["property taxes", "property tax", "appraisal district", "tax levy", "homestead exemption"],
   };
 
   return [
@@ -50,6 +54,10 @@ export function buildStateFallbackFeedUrls(state: StateSite, kind: Topic) {
     crime: ["crime", "courts", "police", "sheriff", "arrests", "trial"],
     obituaries: ["obituaries", "obituary", "funeral home", "death notice"],
     opinion: ["opinion", "editorial", "column", "commentary", "op-ed"],
+    "sound-money": ["sound money", "gold standard", "central bank", "Federal Reserve", "inflation", "currency"],
+    "paper-elections": ["paper ballots", "paper elections", "election integrity", "hand count", "voting machines", "election audit"],
+    "bond-issues": ["bond issue", "municipal bond", "school bond", "public debt", "bond election"],
+    "property-taxes": ["property taxes", "property tax", "appraisal district", "tax levy", "homestead exemption"],
   };
 
   const topicQuery = topics[kind].join(" OR ");
@@ -78,7 +86,18 @@ function topicToCountyKind(kind: Topic) {
   return kind;
 }
 
-type CountyFallbackKind = "localNews" | "localSports" | "obituaries" | "politics" | "economy" | "crime" | "opinion";
+type CountyFallbackKind =
+  | "localNews"
+  | "localSports"
+  | "obituaries"
+  | "politics"
+  | "economy"
+  | "crime"
+  | "opinion"
+  | "sound-money"
+  | "paper-elections"
+  | "bond-issues"
+  | "property-taxes";
 
 function countyDisambiguationExclusions(countyName: string, stateAbbr: string) {
   return getOtherStatesWithCountyName(countyName, stateAbbr)
@@ -116,6 +135,14 @@ function buildCountyFeedUrl(kind: CountyFallbackKind, countyName: string, state:
       return googleNewsRssUrl(scopedTopicQuery(scoped, ["crime", "courts", "sheriff", "police", "arrests"]));
     case "opinion":
       return googleNewsRssUrl(scopedTopicQuery(scoped, ["opinion", "editorial", "column"]));
+    case "sound-money":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["sound money", "gold standard", "central bank", "inflation", "currency"]));
+    case "paper-elections":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["paper ballots", "paper elections", "election integrity", "hand count", "voting machines"]));
+    case "bond-issues":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["bond issue", "municipal bond", "school bond", "public debt", "bond election"]));
+    case "property-taxes":
+      return googleNewsRssUrl(scopedTopicQuery(scoped, ["property taxes", "property tax", "appraisal district", "tax levy", "homestead exemption"]));
   }
 }
 
@@ -137,5 +164,13 @@ function buildMarketFeedUrl(kind: CountyFallbackKind, placeName: string, state: 
       return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["crime", "police", "sheriff", "courts"]));
     case "opinion":
       return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["opinion", "editorial", "column"]));
+    case "sound-money":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["sound money", "inflation", "central bank", "currency"]));
+    case "paper-elections":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["paper ballots", "election integrity", "voting machines", "election audit"]));
+    case "bond-issues":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["bond issue", "school bond", "municipal bond", "public debt"]));
+    case "property-taxes":
+      return googleNewsRssUrl(scopedTopicQuery(scopedPlace, ["property taxes", "property tax", "appraisal district", "tax levy"]));
   }
 }

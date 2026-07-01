@@ -39,9 +39,12 @@ The UI displays the active source per section:
 Fallback configuration:
 
 - `VITE_RSS_PROVIDER_URL`: optional RSS-to-JSON provider override. Defaults to `https://api.rss2json.com/v1/api.json`.
-- `VITE_RSS2JSON_API_KEY`: optional rss2json API key.
-- `VITE_RSS_LOCAL_PROXY_URL`: optional local proxy path for development, default `/api/rss` in dev.
+- `RSS_2_API`: optional rss2json API key used by the fallback provider. This non-`VITE_` variable is explicitly exposed in `vite.config.ts`.
+- `VITE_RSS2JSON_API_KEY`: legacy alias for the rss2json API key; still supported.
+- `VITE_RSS_LOCAL_PROXY_URL`: optional local proxy path for development. Leave unset unless a proxy endpoint exists.
 - `VITE_RSS_RAW_PROXY_URL`: optional raw CORS proxy URL.
+
+When the News API fails, the browser backs off API requests for a few minutes before trying it again. Fallback RSS results are cached per feed URL to avoid repeated rss2json calls while users scroll or sections re-render.
 
 This allows the frontend to deploy now without the localhost API. Once the API is deployed, set `VITE_NEWS_API_URL` in the deployment environment and the app will prefer the API while keeping fallback available.
 
@@ -66,10 +69,18 @@ The `SubmissionForm` component posts to EmailJS using the three `VITE_EMAILJS_*`
 ## Routes
 
 - `/` front page with county search, national feeds, and state directory
+- `/topics/:subjectSlug` national subject pages for `sound-money`, `paper-elections`, `bond-issues`, and `property-taxes`
+- `/submit` national submit op-eds/stories page
 - `/states` state and county directory
 - `/states/:stateSlug` state news page
+- `/states/:stateSlug/:subjectSlug` state subject pages, including `op-eds`
+- `/states/:stateSlug/submit` state submit op-eds/stories page
 - `/:stateSlug/:countySlug` county news page with feeds and submission form
 - `/:stateSlug/:countySlug/op-eds` county opinion page
+- `/:stateSlug/:countySlug/:subjectSlug` county subject pages for `sound-money`, `paper-elections`, `bond-issues`, and `property-taxes`
+- `/:stateSlug/:countySlug/submit` county submit op-eds/stories page
+
+The contextual navigation bar appears below the masthead and links to the active national, state, or county section pages.
 
 ## Deployment Notes
 

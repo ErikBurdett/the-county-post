@@ -32,6 +32,7 @@ Copy `.env.example` to `.env` and set:
 - Counties come from `@nickgraffis/us-counties` via `src/data/counties.ts`; routing slugs are lowercase `/:state/:county`.
 - Feed sections prefer the County Post News API through `src/lib/news-api.ts`.
 - If the API is not configured or unavailable, feed sections fall back to browser-side RSS through `src/lib/rss.ts` and `src/lib/fallback-feed-urls.ts`.
+- RSS fallback uses `RSS_2_API` as the rss2json API key, with `VITE_RSS2JSON_API_KEY` still supported as a legacy alias. `vite.config.ts` explicitly exposes `RSS_2_API`.
 - The UI should indicate the active article source per section: County News API or Fallback RSS.
 
 ## Submissions (EmailJS)

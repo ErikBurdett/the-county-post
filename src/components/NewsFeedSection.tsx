@@ -3,7 +3,18 @@ import { Link } from "react-router-dom";
 import { fetchNewsApiFeed, isNewsApiConfigured, type NewsFeedItem } from "../lib/news-api";
 import { fetchNewsFeeds } from "../lib/rss";
 
-type FeedKind = "general" | "sports" | "politics" | "economy" | "crime" | "obituaries" | "opinion";
+type FeedKind =
+  | "general"
+  | "sports"
+  | "politics"
+  | "economy"
+  | "crime"
+  | "obituaries"
+  | "opinion"
+  | "sound-money"
+  | "paper-elections"
+  | "bond-issues"
+  | "property-taxes";
 
 type LocalityScope = {
   countyName?: string;
@@ -71,6 +82,7 @@ export function NewsFeedSection({
     source === "fallback" &&
     !hasInitialPageData &&
     requestedCount < MAX_REQUESTED_ITEMS &&
+    filteredItems.length >= requestedCount &&
     filteredItems.length < MAX_REQUESTED_ITEMS;
 
   useEffect(() => {
@@ -268,6 +280,22 @@ const categoryRules: Record<FeedKind, { include?: string[]; exclude?: string[] }
   },
   opinion: {
     include: ["opinion", "editorial", "column", "letter to the editor", "commentary", "op-ed", "op ed"],
+    exclude: obituaryTerms,
+  },
+  "sound-money": {
+    include: ["sound money", "gold", "silver", "inflation", "central bank", "federal reserve", "currency", "monetary"],
+    exclude: obituaryTerms,
+  },
+  "paper-elections": {
+    include: ["paper ballot", "paper ballots", "paper election", "hand count", "voting machine", "election audit", "election integrity"],
+    exclude: obituaryTerms,
+  },
+  "bond-issues": {
+    include: ["bond issue", "school bond", "municipal bond", "public debt", "bond election", "bond proposal"],
+    exclude: obituaryTerms,
+  },
+  "property-taxes": {
+    include: ["property tax", "property taxes", "appraisal", "tax levy", "homestead exemption", "tax assessor"],
     exclude: obituaryTerms,
   },
 };

@@ -9,7 +9,18 @@ export type NewsFeedItem = {
   mediaType?: "article" | "video" | "podcast";
 };
 
-export type Topic = "general" | "sports" | "politics" | "economy" | "crime" | "obituaries" | "opinion";
+export type Topic =
+  | "general"
+  | "sports"
+  | "politics"
+  | "economy"
+  | "crime"
+  | "obituaries"
+  | "opinion"
+  | "sound-money"
+  | "paper-elections"
+  | "bond-issues"
+  | "property-taxes";
 
 export type FeedResponse = {
   scope?: Record<string, string>;
@@ -34,10 +45,12 @@ export type PageResponse = {
 };
 
 const CLIENT_CACHE_MS = 60_000;
+const API_FAILURE_BACKOFF_MS = 5 * 60_000;
 const responseCache = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
+let apiDisabledUntil = 0;
 
 export function isNewsApiConfigured() {
-  return Boolean(newsApiBaseUrl());
+  return Boolean(newsApiBaseUrl()) && Date.now() >= apiDisabledUntil;
 }
 
 export async function fetchNewsApiFeed(path: string, limit: number) {
@@ -63,6 +76,10 @@ function newsApiUrl(path: string) {
 }
 
 async function fetchNewsApiJson<T>(url: URL) {
+  if (Date.now() < apiDisabledUntil) {
+    throw new Error("News API is temporarily unavailable; using fallback RSS.");
+  }
+
   const cacheKey = url.toString();
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.promise as Promise<T>;
@@ -77,6 +94,7 @@ async function fetchNewsApiJson<T>(url: URL) {
     return await promise;
   } catch (error) {
     responseCache.delete(cacheKey);
+    apiDisabledUntil = Date.now() + API_FAILURE_BACKOFF_MS;
     throw error;
   }
 }
